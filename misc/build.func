@@ -54,7 +54,7 @@ next_vmid() { pvesh get /cluster/nextid; }
 ensure_template() {
   local storage="${PVE_TEMPLATE_STORAGE:-local}"
   msg_info "Prüfe Debian Template auf Storage ${storage}"
-  if pveam list "$storage" | awk '{print $2}' | grep -q "${var_os}-${var_version}"; then
+  if pveam list "$storage" | awk 'NR>1 {print $1}' | grep -q "${var_os}-${var_version}"; then
     msg_ok "Template vorhanden"
   else
     msg_error "Template nicht vorhanden. Bitte offline hochladen (${var_os}-${var_version})."
@@ -92,7 +92,7 @@ build_container() {
   local hostname="${HOSTNAME_OVERRIDE:-${APP,,}-ct-${vmid}}"
   local rootfs="${PVE_ROOTFS_STORAGE:-local-lvm}:${var_disk}"
   local ostemplate
-  ostemplate="${TEMPLATE_STORAGE}:vztmpl/$(pveam list "${TEMPLATE_STORAGE}" | awk -v os="${var_os}-${var_version}" '$2 ~ os {print $2; exit}')"
+  ostemplate="$(pveam list "${TEMPLATE_STORAGE}" | awk -v os="${var_os}-${var_version}" 'NR>1 && $1 ~ os {print $1; exit}')"
 
   msg_info "Erstelle CT ${vmid} (${hostname})"
   pct create "$vmid" "$ostemplate" \

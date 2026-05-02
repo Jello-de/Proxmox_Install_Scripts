@@ -36,7 +36,7 @@ var_disk="${var_disk:-12}"
 
 # Debian defaults
 var_os="${var_os:-debian}"
-var_version="${var_version:-12}"
+var_version="${var_version:-13}"
 
 # Network defaults
 var_bridge="${var_bridge:-vmbr0}"

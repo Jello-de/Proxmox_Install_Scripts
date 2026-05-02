@@ -33,7 +33,7 @@ export GITLAB_PROJECT_RAW_BASE="https://raw.githubusercontent.com/Jello-de/Proxm
 export GITLAB_PRIVATE_TOKEN="<token>"
 
 # optional CT Variablen
-export var_version=12
+export var_version=13
 export var_vlan=20
 export var_ip='10.20.30.40/24'
 export var_gw='10.20.30.1'
@@ -49,7 +49,7 @@ bash ct/company-debian-offline.sh
 - Build/CT:
   - `var_cpu`, `var_ram`, `var_disk`
   - `var_os` (Default: `debian`)
-  - `var_version` (Default: `12`)
+  - `var_version` (Default: `13`)
   - `var_bridge`, `var_vlan`, `var_ip`, `var_gw`
   - `PVE_TEMPLATE_STORAGE` (Default: `local`)
   - `PVE_ROOTFS_STORAGE` (Default: `local-lvm`)

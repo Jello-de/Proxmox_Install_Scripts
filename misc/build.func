@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+color() {
+  BOLD='\033[1m'; GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; NC='\033[0m'
+}
+
+msg_info() { echo -e "${BOLD}${YELLOW}[INFO]${NC} $*"; }
+msg_ok() { echo -e "${BOLD}${GREEN}[OK]${NC} $*"; }
+msg_error() { echo -e "${BOLD}${RED}[ERR]${NC} $*"; }
+
+header_info() {
+  echo "==============================================="
+  echo " $1 - Offline Enterprise CT Builder"
+  echo "==============================================="
+}
+
+catch_errors() {
+  trap 'msg_error "Fehler in Zeile $LINENO"' ERR
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || { msg_error "Benötigter Befehl fehlt: $1"; exit 1; }
+}
+
+validate_vars() {
+  : "${APP:?APP ist leer}"
+  : "${var_os:?var_os fehlt}"
+  : "${var_version:?var_version fehlt}"
+  : "${var_cpu:?var_cpu fehlt}"
+  : "${var_ram:?var_ram fehlt}"
+  : "${var_disk:?var_disk fehlt}"
+  : "${var_bridge:?var_bridge fehlt}"
+  : "${INSTALLER_SCRIPT_NAME:?INSTALLER_SCRIPT_NAME fehlt}"
+  : "${GITLAB_PROJECT_RAW_BASE:?GITLAB_PROJECT_RAW_BASE fehlt}"
+}
+
+variables() {
+  : "${APP:=MyApp}"
+  : "${var_cpu:=2}"
+  : "${var_ram:=2048}"
+  : "${var_disk:=8}"
+  : "${var_os:=debian}"
+  : "${var_version:=12}"
+  : "${var_unprivileged:=1}"
+  : "${var_bridge:=vmbr0}"
+  : "${var_vlan:=}"
+  : "${var_ip:=dhcp}"
+  : "${var_gw:=}"
+}
+
+next_vmid() { pvesh get /cluster/nextid; }
+
+ensure_template() {
+  local storage="${PVE_TEMPLATE_STORAGE:-local}"
+  msg_info "Prüfe Debian Template auf Storage ${storage}"
+  if pveam list "$storage" | awk '{print $2}' | grep -q "${var_os}-${var_version}"; then
+    msg_ok "Template vorhanden"
+  else
+    msg_error "Template nicht vorhanden. Bitte offline hochladen (${var_os}-${var_version})."
+    exit 1
+  fi
+  TEMPLATE_STORAGE="$storage"
+}
+
+fetch_installer_from_gitlab() {
+  local tmpdir
+  tmpdir="$(mktemp -d)"
+  local local_installer="${tmpdir}/${INSTALLER_SCRIPT_NAME}"
+  local url="${GITLAB_PROJECT_RAW_BASE}/install/${INSTALLER_SCRIPT_NAME}"
+
+  msg_info "Lade Installer aus GitLab: ${url}"
+  if [[ -n "${GITLAB_PRIVATE_TOKEN:-}" ]]; then
+    curl -fsSL -H "PRIVATE-TOKEN: ${GITLAB_PRIVATE_TOKEN}" "$url" -o "$local_installer"
+  else
+    curl -fsSL "$url" -o "$local_installer"
+  fi
+  chmod 755 "$local_installer"
+  INSTALLER_LOCAL_PATH="$local_installer"
+}
+
+build_container() {
+  require_cmd pct
+  require_cmd pvesh
+  require_cmd pveam
+  require_cmd curl
+  validate_vars
+  ensure_template
+  fetch_installer_from_gitlab
+
+  local vmid="${VMID:-$(next_vmid)}"
+  local hostname="${HOSTNAME_OVERRIDE:-${APP,,}-ct-${vmid}}"
+  local rootfs="${PVE_ROOTFS_STORAGE:-local-lvm}:${var_disk}"
+  local ostemplate
+  ostemplate="${TEMPLATE_STORAGE}:vztmpl/$(pveam list "${TEMPLATE_STORAGE}" | awk -v os="${var_os}-${var_version}" '$2 ~ os {print $2; exit}')"
+
+  msg_info "Erstelle CT ${vmid} (${hostname})"
+  pct create "$vmid" "$ostemplate" \
+    --hostname "$hostname" \
+    --cores "$var_cpu" \
+    --memory "$var_ram" \
+    --rootfs "$rootfs" \
+    --unprivileged "$var_unprivileged" \
+    --features nesting=1 \
+    --net0 "name=eth0,bridge=${var_bridge}${var_vlan:+,tag=${var_vlan}},ip=${var_ip}${var_gw:+,gw=${var_gw}}" \
+    --onboot 1 \
+    --start 1
+
+  msg_info "Kopiere Installer in CT"
+  pct push "$vmid" "$INSTALLER_LOCAL_PATH" "/root/${INSTALLER_SCRIPT_NAME}" -perms 755
+
+  msg_info "Führe Installer im CT aus"
+  pct exec "$vmid" -- bash -lc "/root/${INSTALLER_SCRIPT_NAME}"
+
+  msg_ok "Container ${vmid} erfolgreich bereitgestellt"
+}
+
+start() { msg_info "Starte Bereitstellung"; }
+description() {
+  cat <<DESC
+APP: ${APP}
+OS: ${var_os} ${var_version}
+CPU/RAM/DISK: ${var_cpu}/${var_ram}MB/${var_disk}GB
+Bridge/VLAN: ${var_bridge}/${var_vlan:-none}
+IP: ${var_ip}
+GitLab source: ${GITLAB_PROJECT_RAW_BASE}
+DESC
+}

@@ -3,7 +3,7 @@ source "$(dirname "$0")/../misc/build.func"
 
 APP="n8n (Company Offline)"
 INSTALLER_SCRIPT_NAME="n8n-company-install.sh"
-GITLAB_PROJECT_RAW_BASE="${GITLAB_PROJECT_RAW_BASE:-https://gitlab.example.com/company/proxmox-install-scripts/-/raw/main}"
+GITLAB_PROJECT_RAW_BASE="${GITLAB_PROJECT_RAW_BASE:-https://raw.githubusercontent.com/Jello-de/Proxmox_Install_Scripts/main}"
 GITLAB_PRIVATE_TOKEN="${GITLAB_PRIVATE_TOKEN:-}"
 
 # Sizing defaults (n8n)

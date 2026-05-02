@@ -4,7 +4,7 @@ source "$(dirname "$0")/../misc/build.func"
 APP="Company Debian Baseline"
 INSTALLER_SCRIPT_NAME="company-debian-offline-install.sh"
 # GitLab raw script source (self-hosted or gitlab.com)
-GITLAB_PROJECT_RAW_BASE="${GITLAB_PROJECT_RAW_BASE:-https://gitlab.example.com/company/proxmox-install-scripts/-/raw/main}"
+GITLAB_PROJECT_RAW_BASE="${GITLAB_PROJECT_RAW_BASE:-https://raw.githubusercontent.com/Jello-de/Proxmox_Install_Scripts/main}"
 GITLAB_PRIVATE_TOKEN="${GITLAB_PRIVATE_TOKEN:-}"
 
 # Default sizing

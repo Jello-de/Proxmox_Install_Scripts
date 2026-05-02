@@ -28,7 +28,7 @@ Damit ist eine zentrale Bereitstellung, Versionierung und Freigabe im Unternehme
 chmod +x ct/company-debian-offline.sh install/company-debian-offline-install.sh
 
 # GitLab Quelle setzen
-export GITLAB_PROJECT_RAW_BASE="https://gitlab.example.com/company/proxmox-install-scripts/-/raw/main"
+export GITLAB_PROJECT_RAW_BASE="https://raw.githubusercontent.com/Jello-de/Proxmox_Install_Scripts/main"
 # optional bei privatem Projekt
 export GITLAB_PRIVATE_TOKEN="<token>"
 
@@ -44,7 +44,7 @@ bash ct/company-debian-offline.sh
 ## Wichtige Variablen
 
 - GitLab:
-  - `GITLAB_PROJECT_RAW_BASE` (z. B. `https://gitlab.example.com/group/project/-/raw/main`)
+  - `GITLAB_PROJECT_RAW_BASE` (z. B. `https://raw.githubusercontent.com/Jello-de/Proxmox_Install_Scripts/main`)
   - `GITLAB_PRIVATE_TOKEN` (optional)
 - Build/CT:
   - `var_cpu`, `var_ram`, `var_disk`
@@ -71,7 +71,7 @@ Beispiel:
 
 ```bash
 chmod +x ct/n8n-company.sh install/n8n-company-install.sh
-export GITLAB_PROJECT_RAW_BASE="https://gitlab.example.com/company/proxmox-install-scripts/-/raw/main"
+export GITLAB_PROJECT_RAW_BASE="https://raw.githubusercontent.com/Jello-de/Proxmox_Install_Scripts/main"
 export GITLAB_PRIVATE_TOKEN="<token>"   # optional
 export INTERNAL_APT_MIRROR="http://apt-mirror.intern.local/debian"
 export NPM_CONFIG_REGISTRY="http://npm-mirror.intern.local/repository/npm/"

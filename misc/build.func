@@ -51,6 +51,18 @@ variables() {
 
 next_vmid() { pvesh get /cluster/nextid; }
 
+sanitize_hostname() {
+  local input="$1"
+  local cleaned
+  cleaned="$(echo "$input" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9-]+/-/g; s/^-+//; s/-+$//; s/-{2,}/-/g')"
+  cleaned="${cleaned:0:63}"
+  cleaned="$(echo "$cleaned" | sed -E 's/^-+//; s/-+$//')"
+  if [[ -z "$cleaned" ]]; then
+    cleaned="ct"
+  fi
+  printf '%s' "$cleaned"
+}
+
 ensure_template() {
   local storage="${PVE_TEMPLATE_STORAGE:-local}"
   msg_info "Prüfe Debian Template auf Storage ${storage}"
@@ -63,20 +75,33 @@ ensure_template() {
   TEMPLATE_STORAGE="$storage"
 }
 
+fetch_file_from_source() {
+  local remote_path="$1"
+  local local_path="$2"
+  local url="${GITLAB_PROJECT_RAW_BASE}/${remote_path}"
+
+  if [[ -n "${GITLAB_PRIVATE_TOKEN:-}" ]]; then
+    curl -fsSL -H "PRIVATE-TOKEN: ${GITLAB_PRIVATE_TOKEN}" "$url" -o "$local_path"
+  else
+    curl -fsSL "$url" -o "$local_path"
+  fi
+}
+
 fetch_installer_from_gitlab() {
   local tmpdir
   tmpdir="$(mktemp -d)"
   local local_installer="${tmpdir}/${INSTALLER_SCRIPT_NAME}"
-  local url="${GITLAB_PROJECT_RAW_BASE}/install/${INSTALLER_SCRIPT_NAME}"
+  local local_install_func="${tmpdir}/install.func"
 
-  msg_info "Lade Installer aus GitLab: ${url}"
-  if [[ -n "${GITLAB_PRIVATE_TOKEN:-}" ]]; then
-    curl -fsSL -H "PRIVATE-TOKEN: ${GITLAB_PRIVATE_TOKEN}" "$url" -o "$local_installer"
-  else
-    curl -fsSL "$url" -o "$local_installer"
-  fi
-  chmod 755 "$local_installer"
+  msg_info "Lade Installer aus GitLab: ${GITLAB_PROJECT_RAW_BASE}/install/${INSTALLER_SCRIPT_NAME}"
+  fetch_file_from_source "install/${INSTALLER_SCRIPT_NAME}" "$local_installer"
+
+  msg_info "Lade gemeinsame Install-Funktionen aus GitLab: ${GITLAB_PROJECT_RAW_BASE}/misc/install.func"
+  fetch_file_from_source "misc/install.func" "$local_install_func"
+
+  chmod 755 "$local_installer" "$local_install_func"
   INSTALLER_LOCAL_PATH="$local_installer"
+  INSTALL_FUNC_LOCAL_PATH="$local_install_func"
 }
 
 build_container() {
@@ -89,7 +114,9 @@ build_container() {
   fetch_installer_from_gitlab
 
   local vmid="${VMID:-$(next_vmid)}"
-  local hostname="${HOSTNAME_OVERRIDE:-${APP,,}-ct-${vmid}}"
+  local default_hostname="${APP,,}-ct-${vmid}"
+  local hostname="${HOSTNAME_OVERRIDE:-$default_hostname}"
+  hostname="$(sanitize_hostname "$hostname")"
   local rootfs="${PVE_ROOTFS_STORAGE:-local-lvm}:${var_disk}"
   local ostemplate
   ostemplate="$(pveam list "${TEMPLATE_STORAGE}" | awk -v os="${var_os}-${var_version}" 'NR>1 && $1 ~ os {print $1; exit}')"
@@ -108,6 +135,7 @@ build_container() {
 
   msg_info "Kopiere Installer in CT"
   pct push "$vmid" "$INSTALLER_LOCAL_PATH" "/root/${INSTALLER_SCRIPT_NAME}" -perms 755
+  pct push "$vmid" "$INSTALL_FUNC_LOCAL_PATH" "/root/install.func" -perms 644
 
   msg_info "Führe Installer im CT aus"
   pct exec "$vmid" -- bash -lc "/root/${INSTALLER_SCRIPT_NAME}"

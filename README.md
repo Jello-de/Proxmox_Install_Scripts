@@ -53,6 +53,7 @@ bash ct/company-debian-offline.sh
   - `var_bridge`, `var_vlan`, `var_ip`, `var_gw`
   - `PVE_TEMPLATE_STORAGE` (Default: `local`)
   - `PVE_ROOTFS_STORAGE` (Default: `local-lvm`)
+  - `HOSTNAME_OVERRIDE` (optional, wird DNS-konform bereinigt)
 - Installer:
   - `INTERNAL_APT_HOST`
   - `INTERNAL_APT_MIRROR`

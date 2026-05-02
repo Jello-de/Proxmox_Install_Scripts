@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-source "$(dirname "$0")/../misc/install.func"
+if [[ -f /root/install.func ]]; then
+  source /root/install.func
+else
+  source "$(dirname "$0")/../misc/install.func"
+fi
 
 # Enterprise defaults (über Umgebungsvariablen überschreibbar)
 INTERNAL_APT_HOST="${INTERNAL_APT_HOST:-apt-mirror.intern.local}"

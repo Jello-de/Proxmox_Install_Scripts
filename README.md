@@ -55,10 +55,11 @@ bash ct/company-debian-offline.sh
   - `PVE_ROOTFS_STORAGE` (Default: `local-lvm`)
   - `HOSTNAME_OVERRIDE` (optional, wird DNS-konform bereinigt)
 - Installer:
-  - `INTERNAL_APT_HOST`
+  - `INTERNAL_APT_HOST` (optional, wird sonst aus `INTERNAL_APT_MIRROR` abgeleitet)
   - `INTERNAL_APT_MIRROR`
   - `DEBIAN_CODENAME` (z. B. `bookworm`)
   - `HTTP_PROXY`, `HTTPS_PROXY`
+  - `SKIP_NETWORK_CHECK` (`1` = Erreichbarkeitscheck überspringen)
 
 
 ## n8n (interner Gebrauch)

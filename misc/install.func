@@ -12,10 +12,24 @@ msg_error() { echo -e "${BOLD}${RED}[ERR]${NC} $*"; }
 catch_errors() { trap 'msg_error "Fehler in Zeile $LINENO"' ERR; }
 
 network_check() {
+  if [[ "${SKIP_NETWORK_CHECK:-0}" == "1" ]]; then
+    msg_info "Netzwerkprüfung übersprungen (SKIP_NETWORK_CHECK=1)"
+    return 0
+  fi
+
   msg_info "Prüfe interne Erreichbarkeit"
-  : "${INTERNAL_APT_HOST:?INTERNAL_APT_HOST fehlt}"
-  ping -c1 -W2 "$INTERNAL_APT_HOST" >/dev/null
-  msg_ok "Interner Host erreichbar: $INTERNAL_APT_HOST"
+  local check_host="${INTERNAL_APT_HOST:-}"
+  if [[ -z "$check_host" && -n "${INTERNAL_APT_MIRROR:-}" ]]; then
+    check_host="$(echo "$INTERNAL_APT_MIRROR" | sed -E 's#^[a-z]+://##; s#/.*$##')"
+  fi
+  : "${check_host:?INTERNAL_APT_HOST oder INTERNAL_APT_MIRROR muss gesetzt sein}"
+
+  if getent hosts "$check_host" >/dev/null 2>&1; then
+    msg_ok "Host auflösbar: $check_host"
+  else
+    msg_error "Host nicht auflösbar: $check_host"
+    return 1
+  fi
 }
 
 configure_apt_offline() {

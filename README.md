@@ -58,3 +58,22 @@ bash ct/company-debian-offline.sh
   - `INTERNAL_APT_MIRROR`
   - `DEBIAN_CODENAME` (z. B. `bookworm`)
   - `HTTP_PROXY`, `HTTPS_PROXY`
+
+
+## n8n (interner Gebrauch)
+
+Zusätzlich ist ein n8n-spezifischer Company-Flow enthalten:
+
+- `ct/n8n-company.sh` – erstellt einen Debian-LXC für n8n und lädt `install/n8n-company-install.sh` aus GitLab.
+- `install/n8n-company-install.sh` – richtet n8n offline-freundlich ein (interner APT-Mirror + internes npm registry mirror).
+
+Beispiel:
+
+```bash
+chmod +x ct/n8n-company.sh install/n8n-company-install.sh
+export GITLAB_PROJECT_RAW_BASE="https://gitlab.example.com/company/proxmox-install-scripts/-/raw/main"
+export GITLAB_PRIVATE_TOKEN="<token>"   # optional
+export INTERNAL_APT_MIRROR="http://apt-mirror.intern.local/debian"
+export NPM_CONFIG_REGISTRY="http://npm-mirror.intern.local/repository/npm/"
+bash ct/n8n-company.sh
+```

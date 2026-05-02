@@ -6,8 +6,8 @@ else
 fi
 
 # Enterprise defaults
-INTERNAL_APT_HOST="${INTERNAL_APT_HOST:-apt-mirror.intern.local}"
-INTERNAL_APT_MIRROR="${INTERNAL_APT_MIRROR:-http://apt-mirror.intern.local/debian}"
+INTERNAL_APT_HOST="${INTERNAL_APT_HOST:-deb.debian.org}"
+INTERNAL_APT_MIRROR="${INTERNAL_APT_MIRROR:-http://deb.debian.org/debian}"
 DEBIAN_CODENAME="${DEBIAN_CODENAME:-bookworm}"
 
 # Optional proxies

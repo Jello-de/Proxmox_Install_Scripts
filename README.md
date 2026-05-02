@@ -20,7 +20,7 @@ Damit ist eine zentrale Bereitstellung, Versionierung und Freigabe im Unternehme
 1. Debian LXC Template lokal vorhanden (z. B. auf `local`).
 2. Proxmox Host kann die interne GitLab-URL erreichen.
 3. Optional: `GITLAB_PRIVATE_TOKEN` für private Projekte.
-4. Netzwerkzugang vom CT zum internen APT-Mirror (`INTERNAL_APT_HOST`).
+4. Netzwerkzugang vom CT zum konfigurierten APT-Host (intern oder `deb.debian.org`).
 
 ## Nutzung
 
@@ -55,7 +55,7 @@ bash ct/company-debian-offline.sh
   - `PVE_ROOTFS_STORAGE` (Default: `local-lvm`)
   - `HOSTNAME_OVERRIDE` (optional, wird DNS-konform bereinigt)
 - Installer:
-  - `INTERNAL_APT_HOST` (optional, wird sonst aus `INTERNAL_APT_MIRROR` abgeleitet)
+  - `INTERNAL_APT_HOST` (optional; z. B. `deb.debian.org` oder interner Mirror-Host)
   - `INTERNAL_APT_MIRROR`
   - `DEBIAN_CODENAME` (z. B. `bookworm`)
   - `HTTP_PROXY`, `HTTPS_PROXY`
@@ -75,7 +75,7 @@ Beispiel:
 chmod +x ct/n8n-company.sh install/n8n-company-install.sh
 export GITLAB_PROJECT_RAW_BASE="https://raw.githubusercontent.com/Jello-de/Proxmox_Install_Scripts/main"
 export GITLAB_PRIVATE_TOKEN="<token>"   # optional
-export INTERNAL_APT_MIRROR="http://apt-mirror.intern.local/debian"
+export INTERNAL_APT_MIRROR="http://deb.debian.org/debian"
 export NPM_CONFIG_REGISTRY="http://npm-mirror.intern.local/repository/npm/"
 bash ct/n8n-company.sh
 ```

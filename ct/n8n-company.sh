@@ -1,10 +1,33 @@
 #!/usr/bin/env bash
-source "$(dirname "$0")/../misc/build.func"
+set -Eeuo pipefail
+
+GITLAB_PROJECT_RAW_BASE="${GITLAB_PROJECT_RAW_BASE:-https://raw.githubusercontent.com/Jello-de/Proxmox_Install_Scripts/main}"
+GITLAB_PRIVATE_TOKEN="${GITLAB_PRIVATE_TOKEN:-}"
+
+load_build_functions() {
+  local local_func="$(dirname "$0")/../misc/build.func"
+  if [[ -f "$local_func" ]]; then
+    # shellcheck disable=SC1090
+    source "$local_func"
+    return
+  fi
+
+  local tmp_func
+  tmp_func="$(mktemp)"
+  local func_url="${GITLAB_PROJECT_RAW_BASE}/misc/build.func"
+  if [[ -n "${GITLAB_PRIVATE_TOKEN}" ]]; then
+    curl -fsSL -H "PRIVATE-TOKEN: ${GITLAB_PRIVATE_TOKEN}" "$func_url" -o "$tmp_func"
+  else
+    curl -fsSL "$func_url" -o "$tmp_func"
+  fi
+  # shellcheck disable=SC1090
+  source "$tmp_func"
+}
+
+load_build_functions
 
 APP="n8n (Company Offline)"
 INSTALLER_SCRIPT_NAME="n8n-company-install.sh"
-GITLAB_PROJECT_RAW_BASE="${GITLAB_PROJECT_RAW_BASE:-https://raw.githubusercontent.com/Jello-de/Proxmox_Install_Scripts/main}"
-GITLAB_PRIVATE_TOKEN="${GITLAB_PRIVATE_TOKEN:-}"
 
 # Sizing defaults (n8n)
 var_cpu="${var_cpu:-2}"

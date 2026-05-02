@@ -77,3 +77,9 @@ export INTERNAL_APT_MIRROR="http://apt-mirror.intern.local/debian"
 export NPM_CONFIG_REGISTRY="http://npm-mirror.intern.local/repository/npm/"
 bash ct/n8n-company.sh
 ```
+
+Einzeiler (Bootstrap via curl) ist jetzt ebenfalls möglich:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Jello-de/Proxmox_Install_Scripts/main/ct/n8n-company.sh)"
+```

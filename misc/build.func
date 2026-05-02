@@ -31,8 +31,8 @@ validate_vars() {
   : "${var_ram:?var_ram fehlt}"
   : "${var_disk:?var_disk fehlt}"
   : "${var_bridge:?var_bridge fehlt}"
-  : "${INTERNAL_SNIPPETS_DIR:?INTERNAL_SNIPPETS_DIR fehlt}"
   : "${INSTALLER_SCRIPT_NAME:?INSTALLER_SCRIPT_NAME fehlt}"
+  : "${GITLAB_PROJECT_RAW_BASE:?GITLAB_PROJECT_RAW_BASE fehlt}"
 }
 
 variables() {
@@ -49,28 +49,44 @@ variables() {
   : "${var_gw:=}"
 }
 
-next_vmid() {
-  pvesh get /cluster/nextid
-}
+next_vmid() { pvesh get /cluster/nextid; }
 
 ensure_template() {
   local storage="${PVE_TEMPLATE_STORAGE:-local}"
-  local tmpl="${var_os}-${var_version}-standard_${var_version}.0-1_amd64.tar.zst"
-  msg_info "Prüfe Template ${tmpl} auf Storage ${storage}"
+  msg_info "Prüfe Debian Template auf Storage ${storage}"
   if pveam list "$storage" | awk '{print $2}' | grep -q "${var_os}-${var_version}"; then
     msg_ok "Template vorhanden"
   else
-    msg_error "Template nicht vorhanden. Bitte offline hochladen: ${tmpl}"
+    msg_error "Template nicht vorhanden. Bitte offline hochladen (${var_os}-${var_version})."
     exit 1
   fi
   TEMPLATE_STORAGE="$storage"
 }
 
+fetch_installer_from_gitlab() {
+  local tmpdir
+  tmpdir="$(mktemp -d)"
+  local local_installer="${tmpdir}/${INSTALLER_SCRIPT_NAME}"
+  local url="${GITLAB_PROJECT_RAW_BASE}/install/${INSTALLER_SCRIPT_NAME}"
+
+  msg_info "Lade Installer aus GitLab: ${url}"
+  if [[ -n "${GITLAB_PRIVATE_TOKEN:-}" ]]; then
+    curl -fsSL -H "PRIVATE-TOKEN: ${GITLAB_PRIVATE_TOKEN}" "$url" -o "$local_installer"
+  else
+    curl -fsSL "$url" -o "$local_installer"
+  fi
+  chmod 755 "$local_installer"
+  INSTALLER_LOCAL_PATH="$local_installer"
+}
+
 build_container() {
   require_cmd pct
   require_cmd pvesh
+  require_cmd pveam
+  require_cmd curl
   validate_vars
   ensure_template
+  fetch_installer_from_gitlab
 
   local vmid="${VMID:-$(next_vmid)}"
   local hostname="${HOSTNAME_OVERRIDE:-${APP,,}-ct-${vmid}}"
@@ -90,8 +106,8 @@ build_container() {
     --onboot 1 \
     --start 1
 
-  msg_info "Kopiere Offline-Installer in CT"
-  pct push "$vmid" "${INTERNAL_SNIPPETS_DIR}/${INSTALLER_SCRIPT_NAME}" "/root/${INSTALLER_SCRIPT_NAME}" -perms 755
+  msg_info "Kopiere Installer in CT"
+  pct push "$vmid" "$INSTALLER_LOCAL_PATH" "/root/${INSTALLER_SCRIPT_NAME}" -perms 755
 
   msg_info "Führe Installer im CT aus"
   pct exec "$vmid" -- bash -lc "/root/${INSTALLER_SCRIPT_NAME}"
@@ -107,5 +123,6 @@ OS: ${var_os} ${var_version}
 CPU/RAM/DISK: ${var_cpu}/${var_ram}MB/${var_disk}GB
 Bridge/VLAN: ${var_bridge}/${var_vlan:-none}
 IP: ${var_ip}
+GitLab source: ${GITLAB_PROJECT_RAW_BASE}
 DESC
 }

@@ -3,7 +3,9 @@ source "$(dirname "$0")/../misc/build.func"
 
 APP="Company Debian Baseline"
 INSTALLER_SCRIPT_NAME="company-debian-offline-install.sh"
-INTERNAL_SNIPPETS_DIR="${INTERNAL_SNIPPETS_DIR:-/var/lib/vz/snippets}"
+# GitLab raw script source (self-hosted or gitlab.com)
+GITLAB_PROJECT_RAW_BASE="${GITLAB_PROJECT_RAW_BASE:-https://gitlab.example.com/company/proxmox-install-scripts/-/raw/main}"
+GITLAB_PRIVATE_TOKEN="${GITLAB_PRIVATE_TOKEN:-}"
 
 # Default sizing
 var_cpu="${var_cpu:-2}"

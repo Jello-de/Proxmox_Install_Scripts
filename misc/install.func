@@ -11,6 +11,13 @@ msg_ok() { echo -e "${BOLD}${GREEN}[OK]${NC} $*"; }
 msg_error() { echo -e "${BOLD}${RED}[ERR]${NC} $*"; }
 catch_errors() { trap 'msg_error "Fehler in Zeile $LINENO"' ERR; }
 
+prepare_locale() {
+  export DEBIAN_FRONTEND=noninteractive
+  export LANG="${LANG:-C.UTF-8}"
+  export LC_ALL="${LC_ALL:-C.UTF-8}"
+  export LANGUAGE="${LANGUAGE:-C.UTF-8}"
+}
+
 network_check() {
   if [[ "${SKIP_NETWORK_CHECK:-0}" == "1" ]]; then
     msg_info "Netzwerkprüfung übersprungen (SKIP_NETWORK_CHECK=1)"

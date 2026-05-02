@@ -16,6 +16,7 @@ HTTPS_PROXY="${HTTPS_PROXY:-}"
 
 color
 catch_errors
+prepare_locale
 network_check
 configure_proxy
 configure_apt_offline
@@ -24,7 +25,9 @@ enable_unattended_security_updates
 
 # Basis-Tooling
 apt-get install -y ca-certificates curl gnupg vim htop qemu-guest-agent
-systemctl enable --now qemu-guest-agent
+if ! systemctl enable --now qemu-guest-agent; then
+  msg_info "qemu-guest-agent konnte nicht aktiviert werden (in LXC ggf. erwartet)"
+fi
 
 motd_ssh
 customize

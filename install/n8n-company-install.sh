@@ -23,13 +23,16 @@ N8N_BINARY="/usr/local/bin/n8n"
 
 color
 catch_errors
+prepare_locale
 network_check
 configure_proxy
 configure_apt_offline
 update_os
 
 apt-get install -y ca-certificates curl gnupg sqlite3 qemu-guest-agent
-systemctl enable --now qemu-guest-agent
+if ! systemctl enable --now qemu-guest-agent; then
+  msg_info "qemu-guest-agent konnte nicht aktiviert werden (in LXC ggf. erwartet)"
+fi
 
 # Node.js aus Debian Repo (offline-freundlich)
 apt-get install -y nodejs npm

@@ -89,3 +89,6 @@ Einzeiler (Bootstrap via curl) ist jetzt ebenfalls möglich:
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Jello-de/Proxmox_Install_Scripts/main/ct/n8n-company.sh)"
 ```
+
+
+Hinweis: APT wird im Quiet-Modus (`-qq`) ausgeführt, um Ausgabe auf wichtige Meldungen (Warnungen/Fehler) zu reduzieren.

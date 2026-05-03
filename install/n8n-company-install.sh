@@ -32,19 +32,19 @@ configure_proxy
 configure_apt_offline
 update_os
 
-apt-get install -y ca-certificates curl gnupg sqlite3 qemu-guest-agent
+apt_run install ca-certificates curl gnupg sqlite3 qemu-guest-agent
 if ! systemctl enable --now qemu-guest-agent; then
   msg_info "qemu-guest-agent konnte nicht aktiviert werden (in LXC ggf. erwartet)"
 fi
 
 # Node.js 22+ für n8n sicherstellen
-apt-get remove -y nodejs npm || true
-apt-get autoremove -y || true
-apt-get update
-apt-get install -y ca-certificates curl gnupg build-essential python3 python3-setuptools make g++
+apt_run remove nodejs npm || true
+apt_run autoremove || true
+apt_run update
+apt_run install ca-certificates curl gnupg build-essential python3 python3-setuptools make g++
 
 curl -fsSL "$NODESOURCE_SETUP_URL" | bash -
-apt-get install -y nodejs
+apt_run install nodejs
 
 node -v
 npm -v

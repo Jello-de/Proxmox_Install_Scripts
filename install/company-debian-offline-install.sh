@@ -24,7 +24,7 @@ update_os
 enable_unattended_security_updates
 
 # Basis-Tooling
-apt-get install -y ca-certificates curl gnupg vim htop qemu-guest-agent
+apt_run install ca-certificates curl gnupg vim htop qemu-guest-agent
 if ! systemctl enable --now qemu-guest-agent; then
   msg_info "qemu-guest-agent konnte nicht aktiviert werden (in LXC ggf. erwartet)"
 fi

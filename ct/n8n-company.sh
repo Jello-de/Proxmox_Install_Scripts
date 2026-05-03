@@ -26,7 +26,7 @@ load_build_functions() {
 
 load_build_functions
 
-APP="n8n"
+APP="n8n-company"
 INSTALLER_SCRIPT_NAME="n8n-company-install.sh"
 
 # Sizing defaults (n8n)
@@ -52,4 +52,4 @@ catch_errors
 start
 build_container
 description
-msg_ok "n8n offline container provisioned successfully"
+msg_ok "n8n company container provisioned successfully"

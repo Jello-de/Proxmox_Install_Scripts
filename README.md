@@ -1,12 +1,12 @@
 # Proxmox_Install_Scripts
 
-Offline-Unternehmensvorlage für Proxmox LXC (Debian-Fokus), inspiriert von:
+Unternehmensvorlage für Proxmox LXC (Debian-Fokus), inspiriert von:
 https://github.com/community-scripts/ProxmoxVE/
 
 ## Zielbild: Bereitstellung via GitLab
 
-Die Installationsskripte werden aus einem GitLab-Repository bezogen (Raw URL), optional mit `GITLAB_PRIVATE_TOKEN`.
-Damit ist eine zentrale Bereitstellung, Versionierung und Freigabe im Unternehmensnetz möglich.
+Die Installationsskripte werden aus eurem eigenen Repository bezogen (Raw URL), optional mit `GITLAB_PRIVATE_TOKEN`.
+Damit bleibt ihr unabhängig vom Community-Repo und könnt Änderungen selbst steuern.
 
 ## Struktur
 
@@ -71,7 +71,7 @@ bash ct/company-debian-offline.sh
 Zusätzlich ist ein n8n-spezifischer Company-Flow enthalten:
 
 - `ct/n8n-company.sh` – erstellt einen Debian-LXC für n8n und lädt `install/n8n-company-install.sh` aus GitLab.
-- `install/n8n-company-install.sh` – richtet n8n offline-freundlich ein (interner APT-Mirror + internes npm registry mirror).
+- `install/n8n-company-install.sh` – richtet n8n für Unternehmensbetrieb ein (eigene APT-/npm-Quellen konfigurierbar).
 
 Beispiel:
 

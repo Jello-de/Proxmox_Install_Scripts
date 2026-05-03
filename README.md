@@ -61,6 +61,9 @@ bash ct/company-debian-offline.sh
   - `HTTP_PROXY`, `HTTPS_PROXY`
   - `SKIP_NETWORK_CHECK` (`1` = Erreichbarkeitscheck überspringen)
   - `NPM_CONFIG_REGISTRY` (n8n; Default: `https://registry.npmjs.org/`)
+  - `NODEJS_MAJOR` (n8n; Default: `22`)
+  - `N8N_VERSION` (n8n; Default: `2.18.5`)
+  - `NODESOURCE_SETUP_URL` (optional; Default baut auf `NODEJS_MAJOR`)
 
 
 ## n8n (interner Gebrauch)

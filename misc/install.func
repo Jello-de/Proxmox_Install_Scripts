@@ -19,7 +19,11 @@ prepare_locale() {
 }
 
 apt_run() {
-  apt-get -y -qq -o Dpkg::Use-Pty=0 -o APT::Color=0 "$@"
+  if [[ "${VERBOSE:-0}" == "1" ]]; then
+    apt-get -y -o Dpkg::Use-Pty=0 -o APT::Color=0 "$@"
+  else
+    apt-get -y -qq -o Dpkg::Use-Pty=0 -o APT::Color=0 "$@"
+  fi
 }
 
 network_check() {

@@ -23,6 +23,16 @@ N8N_ENV_FILE="/opt/n8n.env"
 NODEJS_MAJOR="${NODEJS_MAJOR:-22}"
 N8N_VERSION="${N8N_VERSION:-2.18.5}"
 NODESOURCE_SETUP_URL="${NODESOURCE_SETUP_URL:-https://deb.nodesource.com/setup_${NODEJS_MAJOR}.x}"
+INSTALL_LOG="/var/log/n8n-company-install.log"
+
+run_logged() {
+  local cmd="$*"
+  if [[ "${VERBOSE:-0}" == "1" ]]; then
+    bash -lc "$cmd" 2>&1 | tee -a "$INSTALL_LOG"
+    return ${PIPESTATUS[0]}
+  fi
+  bash -lc "$cmd" >>"$INSTALL_LOG" 2>&1
+}
 
 show_latest_npm_log() {
   local latest_log
@@ -51,6 +61,8 @@ check_resources() {
 color
 catch_errors
 prepare_locale
+mkdir -p /var/log
+: >"$INSTALL_LOG"
 network_check
 configure_proxy
 configure_apt_offline
@@ -65,7 +77,11 @@ apt_run autoremove || true
 apt_run update
 apt_run install ca-certificates curl gnupg build-essential python3 python3-setuptools make g++
 
-curl -fsSL "$NODESOURCE_SETUP_URL" | bash -
+if ! run_logged "curl -fsSL '$NODESOURCE_SETUP_URL' | bash -"; then
+  msg_error "NodeSource Setup fehlgeschlagen."
+  tail -n 120 "$INSTALL_LOG" || true
+  exit 1
+fi
 apt_run install nodejs
 
 node -v
@@ -89,7 +105,7 @@ if command -v n8n >/dev/null 2>&1 && [[ "$(n8n --version 2>/dev/null || true)" =
   msg_info "n8n ${N8N_VERSION} ist bereits installiert, überspringe npm Install."
 else
   set +e
-  npm install -g --omit=dev --no-audit --no-fund --loglevel=warn "n8n@${N8N_VERSION}"
+  run_logged "npm install -g --omit=dev --no-audit --no-fund --loglevel=error n8n@${N8N_VERSION}"
   npm_rc=$?
   set -e
   if [[ $npm_rc -ne 0 ]]; then
@@ -99,6 +115,7 @@ else
       msg_error "npm Install fehlgeschlagen (Exit ${npm_rc})."
     fi
     show_latest_npm_log
+    tail -n 120 "$INSTALL_LOG" || true
     exit $npm_rc
   fi
 fi
@@ -156,7 +173,25 @@ done
 
 if ! systemctl is-active --quiet n8n; then
   msg_error "n8n service ist nicht aktiv."
+  systemctl status n8n --no-pager || true
   journalctl -u n8n --no-pager -n 120 || true
+  tail -n 120 "$INSTALL_LOG" || true
+  exit 1
+fi
+
+if ! ss -lntp | grep -q ":${N8N_PORT} "; then
+  msg_error "n8n lauscht nicht auf Port ${N8N_PORT}."
+  systemctl status n8n --no-pager || true
+  journalctl -u n8n --no-pager -n 120 || true
+  tail -n 120 "$INSTALL_LOG" || true
+  exit 1
+fi
+
+if ! curl -fsS "http://127.0.0.1:${N8N_PORT}/" >/dev/null 2>&1; then
+  msg_error "n8n HTTP Healthcheck fehlgeschlagen auf 127.0.0.1:${N8N_PORT}."
+  systemctl status n8n --no-pager || true
+  journalctl -u n8n --no-pager -n 120 || true
+  tail -n 120 "$INSTALL_LOG" || true
   exit 1
 fi
 
@@ -170,3 +205,8 @@ customize
 cleanup_lxc
 msg_ok "n8n company installation complete"
 echo "n8n URL: http://${CT_IP}:${N8N_PORT}"
+if [[ "${VERBOSE:-0}" == "1" ]]; then
+  msg_info "Install-Log: ${INSTALL_LOG}"
+else
+  msg_info "Bei Problemen: tail -n 120 ${INSTALL_LOG}"
+fi

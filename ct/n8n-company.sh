@@ -26,7 +26,7 @@ load_build_functions() {
 
 load_build_functions
 
-APP="n8n (Company Offline)"
+APP="n8n"
 INSTALLER_SCRIPT_NAME="n8n-company-install.sh"
 
 # Sizing defaults (n8n)

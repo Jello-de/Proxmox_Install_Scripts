@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+STD=''
+
+color() {
+  BOLD='\033[1m'; GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; NC='\033[0m'
+}
+msg_info() { echo -e "${BOLD}${YELLOW}[INFO]${NC} $*"; }
+msg_ok() { echo -e "${BOLD}${GREEN}[OK]${NC} $*"; }
+msg_error() { echo -e "${BOLD}${RED}[ERR]${NC} $*"; }
+catch_errors() { trap 'msg_error "Fehler in Zeile $LINENO"' ERR; }
+
+prepare_locale() {
+  export DEBIAN_FRONTEND=noninteractive
+  export LANG="${LANG:-C.UTF-8}"
+  export LC_ALL="${LC_ALL:-C.UTF-8}"
+  export LANGUAGE="${LANGUAGE:-C.UTF-8}"
+}
+
+apt_run() {
+  apt-get -y -qq -o Dpkg::Use-Pty=0 -o APT::Color=0 "$@"
+}
+
+network_check() {
+  if [[ "${SKIP_NETWORK_CHECK:-0}" == "1" ]]; then
+    msg_info "Netzwerkprüfung übersprungen (SKIP_NETWORK_CHECK=1)"
+    return 0
+  fi
+
+  msg_info "Prüfe interne Erreichbarkeit"
+  local check_host="${INTERNAL_APT_HOST:-}"
+  if [[ -z "$check_host" && -n "${INTERNAL_APT_MIRROR:-}" ]]; then
+    check_host="$(echo "$INTERNAL_APT_MIRROR" | sed -E 's#^[a-z]+://##; s#/.*$##')"
+  fi
+  : "${check_host:?INTERNAL_APT_HOST oder INTERNAL_APT_MIRROR muss gesetzt sein}"
+
+  if getent hosts "$check_host" >/dev/null 2>&1; then
+    msg_ok "Host auflösbar: $check_host"
+  else
+    msg_error "Host nicht auflösbar: $check_host"
+    return 1
+  fi
+}
+
+configure_apt_offline() {
+  : "${INTERNAL_APT_MIRROR:?INTERNAL_APT_MIRROR fehlt}"
+  if [[ -z "${DEBIAN_CODENAME:-}" ]]; then
+    DEBIAN_CODENAME="$(. /etc/os-release && echo "${VERSION_CODENAME:-}")"
+  fi
+  : "${DEBIAN_CODENAME:?DEBIAN_CODENAME fehlt und konnte nicht automatisch erkannt werden}"
+
+  rm -f /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources || true
+  cat >/etc/apt/sources.list <<APT
+# Enterprise offline mirror
+
+deb ${INTERNAL_APT_MIRROR} ${DEBIAN_CODENAME} main contrib non-free non-free-firmware
+APT
+}
+
+configure_proxy() {
+  if [[ -n "${HTTP_PROXY:-}" ]]; then
+    cat >/etc/apt/apt.conf.d/01proxy <<PXY
+Acquire::http::Proxy "${HTTP_PROXY}";
+Acquire::https::Proxy "${HTTPS_PROXY:-$HTTP_PROXY}";
+PXY
+    msg_ok "APT Proxy gesetzt"
+  else
+    rm -f /etc/apt/apt.conf.d/01proxy
+    msg_info "Kein Proxy gesetzt"
+  fi
+}
+
+update_os() {
+  msg_info "APT Update/Upgrade"
+  apt_run update
+  apt_run dist-upgrade
+  msg_ok "OS aktualisiert"
+}
+
+enable_unattended_security_updates() {
+  apt_run install unattended-upgrades apt-listchanges
+  dpkg-reconfigure -f noninteractive unattended-upgrades
+  msg_ok "Security Updates aktiviert"
+}
+
+motd_ssh() {
+  echo "Managed by Enterprise Proxmox Offline Template" >/etc/motd
+}
+
+customize() {
+  systemctl enable ssh || true
+}
+
+cleanup_lxc() {
+  apt_run autoremove
+  apt_run clean
+  rm -rf /var/lib/apt/lists/*
+}

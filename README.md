@@ -60,6 +60,7 @@ bash ct/company-debian-offline.sh
   - `DEBIAN_CODENAME` (optional; automatisch aus `/etc/os-release`, z. B. `trixie`)
   - `HTTP_PROXY`, `HTTPS_PROXY`
   - `SKIP_NETWORK_CHECK` (`1` = Erreichbarkeitscheck überspringen)
+  - `ROOT_PASSWORD` (optional; leer = root Console-Autologin wie community-scripts)
   - `NPM_CONFIG_REGISTRY` (n8n; Default: `https://registry.npmjs.org/`)
   - `NODEJS_MAJOR` (n8n; Default: `22`)
   - `N8N_VERSION` (n8n; Default: `2.18.5`)

@@ -31,5 +31,6 @@ fi
 
 motd_ssh
 customize
+configure_root_console_access
 cleanup_lxc
 msg_ok "Offline enterprise baseline installation complete"

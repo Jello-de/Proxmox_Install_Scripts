@@ -202,6 +202,7 @@ fi
 
 motd_ssh
 customize
+configure_root_console_access
 cleanup_lxc
 msg_ok "n8n company installation complete"
 echo "n8n URL: http://${CT_IP}:${N8N_PORT}"

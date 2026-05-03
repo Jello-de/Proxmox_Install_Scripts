@@ -96,6 +96,25 @@ customize() {
   systemctl enable ssh || true
 }
 
+configure_root_console_access() {
+  local pw="${ROOT_PASSWORD:-}"
+  if [[ -n "$pw" ]]; then
+    echo "root:${pw}" | chpasswd
+    rm -f /etc/systemd/system/container-getty@1.service.d/override.conf
+    msg_info "Root-Passwort gesetzt, kein Console-Autologin konfiguriert."
+  else
+    mkdir -p /etc/systemd/system/container-getty@1.service.d
+    cat >/etc/systemd/system/container-getty@1.service.d/override.conf <<EOF
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin root --noclear --keep-baud pts/%I 115200,38400,9600 \$TERM
+EOF
+    msg_info "Kein Root-Passwort gesetzt, Console-Autologin für root aktiviert."
+  fi
+  systemctl daemon-reload || true
+  systemctl restart container-getty@1.service || true
+}
+
 cleanup_lxc() {
   apt_run autoremove
   apt_run clean

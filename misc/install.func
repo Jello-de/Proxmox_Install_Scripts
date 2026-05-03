@@ -50,7 +50,7 @@ configure_apt_offline() {
   fi
   : "${DEBIAN_CODENAME:?DEBIAN_CODENAME fehlt und konnte nicht automatisch erkannt werden}"
 
-  rm -f /etc/apt/sources.list.d/*.list || true
+  rm -f /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources || true
   cat >/etc/apt/sources.list <<APT
 # Enterprise offline mirror
 

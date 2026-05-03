@@ -73,6 +73,8 @@ Zusätzlich ist ein n8n-spezifischer Company-Flow enthalten:
 - `ct/n8n-company.sh` – erstellt einen Debian-LXC für n8n und lädt `install/n8n-company-install.sh` aus GitLab.
 - `install/n8n-company-install.sh` – richtet n8n für Unternehmensbetrieb ein (eigene APT-/npm-Quellen konfigurierbar).
 
+Beim Start von `ct/n8n-company.sh` kannst du zwischen `Default Settings`, `Advanced Settings`, `Verbose/Diagnostic Mode` und `Exit` wählen.
+
 Beispiel:
 
 ```bash

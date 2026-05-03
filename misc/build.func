@@ -121,6 +121,26 @@ build_container() {
   local ostemplate
   ostemplate="$(pveam list "${TEMPLATE_STORAGE}" | awk -v os="${var_os}-${var_version}" 'NR>1 && $1 ~ os {print $1; exit}')"
 
+  if pct status "$vmid" >/dev/null 2>&1; then
+    msg_error "CTID ${vmid} existiert bereits."
+    echo "Optionen: [A]bbrechen, [D]elete+Neu erstellen, [N]eue CTID"
+    read -r -p "Auswahl (A/D/N): " ct_choice
+    case "${ct_choice^^}" in
+      D)
+        pct stop "$vmid" >/dev/null 2>&1 || true
+        pct destroy "$vmid"
+        ;;
+      N)
+        VMID="$(next_vmid)"
+        vmid="$VMID"
+        ;;
+      *)
+        msg_error "Abbruch durch Benutzer."
+        exit 1
+        ;;
+    esac
+  fi
+
   msg_info "Erstelle CT ${vmid} (${hostname})"
   pct create "$vmid" "$ostemplate" \
     --hostname "$hostname" \
@@ -148,6 +168,24 @@ Nächste Schritte zur Analyse:
 NEXT
     exit 1
   fi
+
+  local ct_ip
+  ct_ip="$(pct exec "$vmid" -- bash -lc "hostname -I | awk '{print \$1}'" 2>/dev/null || true)"
+  local n8n_version
+  n8n_version="$(pct exec "$vmid" -- bash -lc "n8n --version" 2>/dev/null || true)"
+  local node_version
+  node_version="$(pct exec "$vmid" -- bash -lc "node -v" 2>/dev/null || true)"
+  local service_active
+  service_active="$(pct exec "$vmid" -- bash -lc "systemctl is-active n8n" 2>/dev/null || true)"
+
+  msg_ok "Installationsübersicht"
+  echo "CTID: ${vmid}"
+  echo "IP: ${ct_ip:-unknown}"
+  echo "URL: http://${ct_ip:-<CT-IP>}:5678"
+  echo "n8n: ${n8n_version:-unknown}"
+  echo "Node: ${node_version:-unknown}"
+  echo "Service: ${service_active:-unknown}"
+  echo "Logs: journalctl -u n8n -f"
 
   msg_ok "Container ${vmid} erfolgreich bereitgestellt"
 }

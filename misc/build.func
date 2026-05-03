@@ -1,0 +1,203 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+color() {
+  BOLD='\033[1m'; GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; NC='\033[0m'
+}
+
+msg_info() { echo -e "${BOLD}${YELLOW}[INFO]${NC} $*"; }
+msg_ok() { echo -e "${BOLD}${GREEN}[OK]${NC} $*"; }
+msg_error() { echo -e "${BOLD}${RED}[ERR]${NC} $*"; }
+
+header_info() {
+  echo "==============================================="
+  echo " $1 - Offline Enterprise CT Builder"
+  echo "==============================================="
+}
+
+catch_errors() {
+  trap 'msg_error "Fehler in Zeile $LINENO"' ERR
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || { msg_error "Benötigter Befehl fehlt: $1"; exit 1; }
+}
+
+validate_vars() {
+  : "${APP:?APP ist leer}"
+  : "${var_os:?var_os fehlt}"
+  : "${var_version:?var_version fehlt}"
+  : "${var_cpu:?var_cpu fehlt}"
+  : "${var_ram:?var_ram fehlt}"
+  : "${var_disk:?var_disk fehlt}"
+  : "${var_bridge:?var_bridge fehlt}"
+  : "${INSTALLER_SCRIPT_NAME:?INSTALLER_SCRIPT_NAME fehlt}"
+  : "${GITLAB_PROJECT_RAW_BASE:?GITLAB_PROJECT_RAW_BASE fehlt}"
+}
+
+variables() {
+  : "${APP:=MyApp}"
+  : "${var_cpu:=2}"
+  : "${var_ram:=2048}"
+  : "${var_disk:=8}"
+  : "${var_os:=debian}"
+  : "${var_version:=12}"
+  : "${var_unprivileged:=1}"
+  : "${var_bridge:=vmbr0}"
+  : "${var_vlan:=}"
+  : "${var_ip:=dhcp}"
+  : "${var_gw:=}"
+}
+
+next_vmid() { pvesh get /cluster/nextid; }
+
+sanitize_hostname() {
+  local input="$1"
+  local cleaned
+  cleaned="$(echo "$input" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9-]+/-/g; s/^-+//; s/-+$//; s/-{2,}/-/g')"
+  cleaned="${cleaned:0:63}"
+  cleaned="$(echo "$cleaned" | sed -E 's/^-+//; s/-+$//')"
+  if [[ -z "$cleaned" ]]; then
+    cleaned="ct"
+  fi
+  printf '%s' "$cleaned"
+}
+
+ensure_template() {
+  local storage="${PVE_TEMPLATE_STORAGE:-local}"
+  msg_info "Prüfe Debian Template auf Storage ${storage}"
+  if pveam list "$storage" | awk 'NR>1 {print $1}' | grep -q "${var_os}-${var_version}"; then
+    msg_ok "Template vorhanden"
+  else
+    msg_error "Template nicht vorhanden. Bitte offline hochladen (${var_os}-${var_version})."
+    exit 1
+  fi
+  TEMPLATE_STORAGE="$storage"
+}
+
+fetch_file_from_source() {
+  local remote_path="$1"
+  local local_path="$2"
+  local url="${GITLAB_PROJECT_RAW_BASE}/${remote_path}"
+
+  if [[ -n "${GITLAB_PRIVATE_TOKEN:-}" ]]; then
+    curl -fsSL -H "PRIVATE-TOKEN: ${GITLAB_PRIVATE_TOKEN}" "$url" -o "$local_path"
+  else
+    curl -fsSL "$url" -o "$local_path"
+  fi
+}
+
+fetch_installer_from_gitlab() {
+  local tmpdir
+  tmpdir="$(mktemp -d)"
+  local local_installer="${tmpdir}/${INSTALLER_SCRIPT_NAME}"
+  local local_install_func="${tmpdir}/install.func"
+
+  msg_info "Lade Installer aus GitLab: ${GITLAB_PROJECT_RAW_BASE}/install/${INSTALLER_SCRIPT_NAME}"
+  fetch_file_from_source "install/${INSTALLER_SCRIPT_NAME}" "$local_installer"
+
+  msg_info "Lade gemeinsame Install-Funktionen aus GitLab: ${GITLAB_PROJECT_RAW_BASE}/misc/install.func"
+  fetch_file_from_source "misc/install.func" "$local_install_func"
+
+  chmod 755 "$local_installer" "$local_install_func"
+  INSTALLER_LOCAL_PATH="$local_installer"
+  INSTALL_FUNC_LOCAL_PATH="$local_install_func"
+}
+
+build_container() {
+  require_cmd pct
+  require_cmd pvesh
+  require_cmd pveam
+  require_cmd curl
+  validate_vars
+  ensure_template
+  fetch_installer_from_gitlab
+
+  local vmid="${VMID:-$(next_vmid)}"
+  local default_hostname="${APP,,}-ct-${vmid}"
+  local hostname="${HOSTNAME_OVERRIDE:-$default_hostname}"
+  hostname="$(sanitize_hostname "$hostname")"
+  local rootfs="${PVE_ROOTFS_STORAGE:-local-lvm}:${var_disk}"
+  local ostemplate
+  ostemplate="$(pveam list "${TEMPLATE_STORAGE}" | awk -v os="${var_os}-${var_version}" 'NR>1 && $1 ~ os {print $1; exit}')"
+
+  if pct status "$vmid" >/dev/null 2>&1; then
+    msg_error "CTID ${vmid} existiert bereits."
+    echo "Optionen: [A]bbrechen, [D]elete+Neu erstellen, [N]eue CTID"
+    read -r -p "Auswahl (A/D/N): " ct_choice
+    case "${ct_choice^^}" in
+      D)
+        pct stop "$vmid" >/dev/null 2>&1 || true
+        pct destroy "$vmid"
+        ;;
+      N)
+        VMID="$(next_vmid)"
+        vmid="$VMID"
+        ;;
+      *)
+        msg_error "Abbruch durch Benutzer."
+        exit 1
+        ;;
+    esac
+  fi
+
+  msg_info "Erstelle CT ${vmid} (${hostname})"
+  pct create "$vmid" "$ostemplate" \
+    --hostname "$hostname" \
+    --cores "$var_cpu" \
+    --memory "$var_ram" \
+    --rootfs "$rootfs" \
+    --unprivileged "$var_unprivileged" \
+    --features nesting=1 \
+    --net0 "name=eth0,bridge=${var_bridge}${var_vlan:+,tag=${var_vlan}},ip=${var_ip}${var_gw:+,gw=${var_gw}}" \
+    --onboot 1 \
+    --start 1
+
+  msg_info "Kopiere Installer in CT"
+  pct push "$vmid" "$INSTALLER_LOCAL_PATH" "/root/${INSTALLER_SCRIPT_NAME}" -perms 755
+  pct push "$vmid" "$INSTALL_FUNC_LOCAL_PATH" "/root/install.func" -perms 644
+
+  msg_info "Führe Installer im CT aus"
+  if ! pct exec "$vmid" -- bash -lc "/root/${INSTALLER_SCRIPT_NAME}"; then
+    msg_error "Installer im CT fehlgeschlagen (CTID: ${vmid})."
+    cat <<NEXT
+Nächste Schritte zur Analyse:
+  pct status ${vmid}
+  pct enter ${vmid}
+  tail -n 120 /root/.npm/_logs/*debug-0.log 2>/dev/null || true
+NEXT
+    exit 1
+  fi
+
+  local ct_ip
+  ct_ip="$(pct exec "$vmid" -- bash -lc "hostname -I | awk '{print \$1}'" 2>/dev/null || true)"
+  local n8n_version
+  n8n_version="$(pct exec "$vmid" -- bash -lc "n8n --version" 2>/dev/null || true)"
+  local node_version
+  node_version="$(pct exec "$vmid" -- bash -lc "node -v" 2>/dev/null || true)"
+  local service_active
+  service_active="$(pct exec "$vmid" -- bash -lc "systemctl is-active n8n" 2>/dev/null || true)"
+
+  msg_ok "Installationsübersicht"
+  echo "CTID: ${vmid}"
+  echo "IP: ${ct_ip:-unknown}"
+  echo "URL: http://${ct_ip:-<CT-IP>}:5678"
+  echo "n8n: ${n8n_version:-unknown}"
+  echo "Node: ${node_version:-unknown}"
+  echo "Service: ${service_active:-unknown}"
+  echo "Logs: journalctl -u n8n -f"
+
+  msg_ok "Container ${vmid} erfolgreich bereitgestellt"
+}
+
+start() { msg_info "Starte Bereitstellung"; }
+description() {
+  cat <<DESC
+APP: ${APP}
+OS: ${var_os} ${var_version}
+CPU/RAM/DISK: ${var_cpu}/${var_ram}MB/${var_disk}GB
+Bridge/VLAN: ${var_bridge}/${var_vlan:-none}
+IP: ${var_ip}
+GitLab source: ${GITLAB_PROJECT_RAW_BASE}
+DESC
+}

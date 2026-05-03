@@ -8,7 +8,7 @@ fi
 # Enterprise defaults (über Umgebungsvariablen überschreibbar)
 INTERNAL_APT_HOST="${INTERNAL_APT_HOST:-deb.debian.org}"
 INTERNAL_APT_MIRROR="${INTERNAL_APT_MIRROR:-http://deb.debian.org/debian}"
-DEBIAN_CODENAME="${DEBIAN_CODENAME:-bookworm}"
+DEBIAN_CODENAME="${DEBIAN_CODENAME:-}"
 
 # Optional proxy
 HTTP_PROXY="${HTTP_PROXY:-}"

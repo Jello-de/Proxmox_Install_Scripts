@@ -57,7 +57,7 @@ bash ct/company-debian-offline.sh
 - Installer:
   - `INTERNAL_APT_HOST` (optional; z. B. `deb.debian.org` oder interner Mirror-Host)
   - `INTERNAL_APT_MIRROR`
-  - `DEBIAN_CODENAME` (z. B. `bookworm`)
+  - `DEBIAN_CODENAME` (optional; automatisch aus `/etc/os-release`, z. B. `trixie`)
   - `HTTP_PROXY`, `HTTPS_PROXY`
   - `SKIP_NETWORK_CHECK` (`1` = Erreichbarkeitscheck überspringen)
   - `NPM_CONFIG_REGISTRY` (n8n; Default: `https://registry.npmjs.org/`)

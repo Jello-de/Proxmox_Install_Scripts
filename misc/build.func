@@ -138,7 +138,16 @@ build_container() {
   pct push "$vmid" "$INSTALL_FUNC_LOCAL_PATH" "/root/install.func" -perms 644
 
   msg_info "Führe Installer im CT aus"
-  pct exec "$vmid" -- bash -lc "/root/${INSTALLER_SCRIPT_NAME}"
+  if ! pct exec "$vmid" -- bash -lc "/root/${INSTALLER_SCRIPT_NAME}"; then
+    msg_error "Installer im CT fehlgeschlagen (CTID: ${vmid})."
+    cat <<NEXT
+Nächste Schritte zur Analyse:
+  pct status ${vmid}
+  pct enter ${vmid}
+  tail -n 120 /root/.npm/_logs/*debug-0.log 2>/dev/null || true
+NEXT
+    exit 1
+  fi
 
   msg_ok "Container ${vmid} erfolgreich bereitgestellt"
 }

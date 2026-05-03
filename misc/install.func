@@ -45,7 +45,12 @@ network_check() {
 
 configure_apt_offline() {
   : "${INTERNAL_APT_MIRROR:?INTERNAL_APT_MIRROR fehlt}"
-  : "${DEBIAN_CODENAME:?DEBIAN_CODENAME fehlt}"
+  if [[ -z "${DEBIAN_CODENAME:-}" ]]; then
+    DEBIAN_CODENAME="$(. /etc/os-release && echo "${VERSION_CODENAME:-}")"
+  fi
+  : "${DEBIAN_CODENAME:?DEBIAN_CODENAME fehlt und konnte nicht automatisch erkannt werden}"
+
+  rm -f /etc/apt/sources.list.d/*.list || true
   cat >/etc/apt/sources.list <<APT
 # Enterprise offline mirror
 

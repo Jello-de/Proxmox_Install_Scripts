@@ -8,7 +8,7 @@ fi
 # Enterprise defaults
 INTERNAL_APT_HOST="${INTERNAL_APT_HOST:-deb.debian.org}"
 INTERNAL_APT_MIRROR="${INTERNAL_APT_MIRROR:-http://deb.debian.org/debian}"
-DEBIAN_CODENAME="${DEBIAN_CODENAME:-bookworm}"
+DEBIAN_CODENAME="${DEBIAN_CODENAME:-}"
 
 # Optional proxies
 HTTP_PROXY="${HTTP_PROXY:-}"
@@ -24,6 +24,30 @@ NODEJS_MAJOR="${NODEJS_MAJOR:-22}"
 N8N_VERSION="${N8N_VERSION:-2.18.5}"
 NODESOURCE_SETUP_URL="${NODESOURCE_SETUP_URL:-https://deb.nodesource.com/setup_${NODEJS_MAJOR}.x}"
 
+show_latest_npm_log() {
+  local latest_log
+  latest_log="$(ls -1t /root/.npm/_logs/*debug-0.log 2>/dev/null | head -n1 || true)"
+  if [[ -n "$latest_log" ]]; then
+    msg_info "Letzte npm Debug-Log ($latest_log), letzte 120 Zeilen:"
+    tail -n 120 "$latest_log" || true
+  fi
+}
+
+check_resources() {
+  local avail_kb mem_mb
+  avail_kb="$(df -Pk / | awk 'NR==2 {print $4}')"
+  mem_mb="$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)"
+  msg_info "Ressourcencheck: freier Platz=${avail_kb}KB, RAM=${mem_mb}MB"
+  if (( avail_kb < 2097152 )); then
+    msg_error "Zu wenig freier Speicherplatz (<2GB)."
+    exit 1
+  fi
+  if (( mem_mb < 1024 )); then
+    msg_error "Zu wenig RAM (<1024MB) für n8n/npm Build-Schritte."
+    exit 1
+  fi
+}
+
 color
 catch_errors
 prepare_locale
@@ -31,6 +55,7 @@ network_check
 configure_proxy
 configure_apt_offline
 update_os
+check_resources
 
 apt_run install ca-certificates curl gnupg sqlite3 qemu-guest-agent
 if ! systemctl enable --now qemu-guest-agent; then
@@ -63,7 +88,23 @@ fi
 msg_ok "npm Registry Host auflösbar: $NPM_REGISTRY_HOST"
 
 npm config set registry "$NPM_CONFIG_REGISTRY"
-npm install -g --omit=dev "n8n@${N8N_VERSION}"
+if command -v n8n >/dev/null 2>&1 && [[ "$(n8n --version 2>/dev/null || true)" == "${N8N_VERSION}" ]]; then
+  msg_info "n8n ${N8N_VERSION} ist bereits installiert, überspringe npm Install."
+else
+  set +e
+  npm install -g --omit=dev --no-audit --no-fund --loglevel=warn "n8n@${N8N_VERSION}"
+  npm_rc=$?
+  set -e
+  if [[ $npm_rc -ne 0 ]]; then
+    if [[ $npm_rc -eq 130 ]]; then
+      msg_error "npm Install wurde unterbrochen (SIGINT, Exit 130)."
+    else
+      msg_error "npm Install fehlgeschlagen (Exit ${npm_rc})."
+    fi
+    show_latest_npm_log
+    exit $npm_rc
+  fi
+fi
 
 # System user + directories
 id -u "$N8N_USER" >/dev/null 2>&1 || useradd --system --create-home --home-dir "$N8N_HOME" --shell /usr/sbin/nologin "$N8N_USER"

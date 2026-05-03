@@ -60,6 +60,7 @@ bash ct/company-debian-offline.sh
   - `DEBIAN_CODENAME` (z. B. `bookworm`)
   - `HTTP_PROXY`, `HTTPS_PROXY`
   - `SKIP_NETWORK_CHECK` (`1` = Erreichbarkeitscheck überspringen)
+  - `NPM_CONFIG_REGISTRY` (n8n; Default: `https://registry.npmjs.org/`)
 
 
 ## n8n (interner Gebrauch)
@@ -76,7 +77,7 @@ chmod +x ct/n8n-company.sh install/n8n-company-install.sh
 export GITLAB_PROJECT_RAW_BASE="https://raw.githubusercontent.com/Jello-de/Proxmox_Install_Scripts/main"
 export GITLAB_PRIVATE_TOKEN="<token>"   # optional
 export INTERNAL_APT_MIRROR="http://deb.debian.org/debian"
-export NPM_CONFIG_REGISTRY="http://npm-mirror.intern.local/repository/npm/"
+export NPM_CONFIG_REGISTRY="https://registry.npmjs.org/"  # oder interner npm-Mirror
 bash ct/n8n-company.sh
 ```
 

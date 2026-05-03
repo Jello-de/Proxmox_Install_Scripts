@@ -13,7 +13,7 @@ DEBIAN_CODENAME="${DEBIAN_CODENAME:-bookworm}"
 # Optional proxies
 HTTP_PROXY="${HTTP_PROXY:-}"
 HTTPS_PROXY="${HTTPS_PROXY:-}"
-NPM_CONFIG_REGISTRY="${NPM_CONFIG_REGISTRY:-http://npm-mirror.intern.local/repository/npm/}"
+NPM_CONFIG_REGISTRY="${NPM_CONFIG_REGISTRY:-https://registry.npmjs.org/}"
 
 # n8n runtime config
 N8N_PORT="${N8N_PORT:-5678}"
@@ -36,6 +36,15 @@ fi
 
 # Node.js aus Debian Repo (offline-freundlich)
 apt-get install -y nodejs npm
+# npm registry Erreichbarkeit prüfen (DNS)
+NPM_REGISTRY_HOST="$(echo "$NPM_CONFIG_REGISTRY" | sed -E 's#^[a-z]+://##; s#/.*$##')"
+if ! getent hosts "$NPM_REGISTRY_HOST" >/dev/null 2>&1; then
+  msg_error "npm Registry Host nicht auflösbar: $NPM_REGISTRY_HOST"
+  msg_info "Setze NPM_CONFIG_REGISTRY auf einen erreichbaren Mirror oder https://registry.npmjs.org/"
+  exit 1
+fi
+msg_ok "npm Registry Host auflösbar: $NPM_REGISTRY_HOST"
+
 npm config set registry "$NPM_CONFIG_REGISTRY"
 npm install -g --omit=dev n8n
 

@@ -19,7 +19,7 @@ NPM_CONFIG_REGISTRY="${NPM_CONFIG_REGISTRY:-https://registry.npmjs.org/}"
 N8N_PORT="${N8N_PORT:-5678}"
 N8N_USER="${N8N_USER:-n8n}"
 N8N_HOME="/opt/n8n"
-N8N_BINARY="/usr/local/bin/n8n"
+N8N_ENV_FILE="/opt/n8n.env"
 NODEJS_MAJOR="${NODEJS_MAJOR:-22}"
 N8N_VERSION="${N8N_VERSION:-2.18.5}"
 NODESOURCE_SETUP_URL="${NODESOURCE_SETUP_URL:-https://deb.nodesource.com/setup_${NODEJS_MAJOR}.x}"
@@ -57,10 +57,7 @@ configure_apt_offline
 update_os
 check_resources
 
-apt_run install ca-certificates curl gnupg sqlite3 qemu-guest-agent
-if ! systemctl enable --now qemu-guest-agent; then
-  msg_info "qemu-guest-agent konnte nicht aktiviert werden (in LXC ggf. erwartet)"
-fi
+apt_run install ca-certificates curl gnupg sqlite3
 
 # Node.js 22+ für n8n sicherstellen
 apt_run remove nodejs npm || true
@@ -106,10 +103,18 @@ else
   fi
 fi
 
+N8N_BIN="$(command -v n8n || true)"
+if [[ -z "$N8N_BIN" ]]; then
+  msg_error "n8n Binary nicht gefunden nach npm Installation."
+  exit 1
+fi
+
 # System user + directories
 id -u "$N8N_USER" >/dev/null 2>&1 || useradd --system --create-home --home-dir "$N8N_HOME" --shell /usr/sbin/nologin "$N8N_USER"
 mkdir -p "$N8N_HOME/.n8n"
 chown -R "$N8N_USER:$N8N_USER" "$N8N_HOME"
+
+runuser -u "$N8N_USER" -- env N8N_USER_FOLDER="$N8N_HOME/.n8n" "$N8N_BIN" --version >/dev/null
 
 cat >/etc/systemd/system/n8n.service <<SERVICE
 [Unit]
@@ -120,11 +125,8 @@ After=network.target
 Type=simple
 User=${N8N_USER}
 Group=${N8N_USER}
-Environment=N8N_PORT=${N8N_PORT}
-Environment=N8N_HOST=0.0.0.0
-Environment=N8N_PROTOCOL=http
-Environment=N8N_USER_FOLDER=${N8N_HOME}/.n8n
-ExecStart=${N8N_BINARY}
+EnvironmentFile=${N8N_ENV_FILE}
+ExecStart=/usr/bin/env n8n start
 Restart=always
 RestartSec=5
 
@@ -132,10 +134,39 @@ RestartSec=5
 WantedBy=multi-user.target
 SERVICE
 
+CT_IP="$(hostname -I | awk '{print $1}')"
+cat >"${N8N_ENV_FILE}" <<ENV
+N8N_SECURE_COOKIE=false
+N8N_PORT=${N8N_PORT}
+N8N_PROTOCOL=http
+N8N_HOST=${CT_IP}
+N8N_LISTEN_ADDRESS=0.0.0.0
+N8N_USER_FOLDER=${N8N_HOME}/.n8n
+ENV
+chown ${N8N_USER}:${N8N_USER} "${N8N_ENV_FILE}"
+chmod 640 "${N8N_ENV_FILE}"
+
 systemctl daemon-reload
 systemctl enable --now n8n
+
+for _ in {1..30}; do
+  systemctl is-active --quiet n8n && ss -lntp | grep -q ":${N8N_PORT} " && curl -fsS "http://127.0.0.1:${N8N_PORT}/" >/dev/null 2>&1 && break
+  sleep 2
+done
+
+if ! systemctl is-active --quiet n8n; then
+  msg_error "n8n service ist nicht aktiv."
+  journalctl -u n8n --no-pager -n 120 || true
+  exit 1
+fi
+
+if [[ -f /root/.n8n/config ]]; then
+  msg_error "Unerwartete Root-Konfiguration gefunden: /root/.n8n/config"
+  exit 1
+fi
 
 motd_ssh
 customize
 cleanup_lxc
-msg_ok "n8n company offline installation complete"
+msg_ok "n8n company installation complete"
+echo "n8n URL: http://${CT_IP}:${N8N_PORT}"
